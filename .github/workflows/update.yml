@@ -1,0 +1,47 @@
+name: Update Database
+
+on:
+  schedule:
+    - cron: "15 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: Becods/gh-script
+          token: ${{ secrets.GH_PAT }}
+          path: script
+
+      - uses: actions/checkout@v4
+        with:
+          ref: data
+          path: data
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Run
+        run: |
+          cd data
+          pip3 install requests
+          python3 ../script/maimai-alias-merge.py
+
+      - name: Check for modified files
+        id: git-check
+        run: |
+          cd data
+          if [ -n "$(git status --porcelain)" ];then echo "modified=true" >> $GITHUB_OUTPUT;fi
+
+      - name: Update
+        if: steps.git-check.outputs.modified == 'true'
+        run: |
+          cd data
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add .
+          git commit -am "`date +"%Y-%m-%d"`"
+          git push
